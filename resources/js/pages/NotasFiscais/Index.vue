@@ -440,19 +440,7 @@ const viewPdf = (id: number) => {
                     v-if="props.notasFiscais.last_page > 1"
                     class="border-t bg-muted/30 px-6 py-4"
                 >
-                    <div class="flex items-center justify-between">
-                        <div class="text-sm text-muted-foreground">
-                            Mostrando
-                            {{ (props.notasFiscais.current_page - 1) * props.notasFiscais.per_page + 1 }}
-                            até
-                            {{
-                                Math.min(
-                                    props.notasFiscais.current_page * props.notasFiscais.per_page,
-                                    props.notasFiscais.total,
-                                )
-                            }}
-                            de {{ props.notasFiscais.total }} resultados
-                        </div>
+                    <div class="flex items-center justify-end">
                         <div class="flex gap-2">
                             <Button
                                 v-if="props.notasFiscais.current_page > 1"
@@ -463,12 +451,12 @@ const viewPdf = (id: number) => {
                                         notasFiscaisRoutes.index().url,
                                         {
                                             page: props.notasFiscais.current_page - 1,
-                                            search: searchQuery,
-                                            status_pagamento: statusFilter,
-                                            mes: mesFilter,
-                                            ano: anoFilter,
+                                            search: searchQuery || undefined,
+                                            status_pagamento: statusFilter || undefined,
+                                            mes: mesFilter || undefined,
+                                            ano: anoFilter || undefined,
                                         },
-                                        { preserveState: true },
+                                        { preserveState: true, preserveScroll: true },
                                     )
                                 "
                             >
@@ -483,12 +471,12 @@ const viewPdf = (id: number) => {
                                         notasFiscaisRoutes.index().url,
                                         {
                                             page: props.notasFiscais.current_page + 1,
-                                            search: searchQuery,
-                                            status_pagamento: statusFilter,
-                                            mes: mesFilter,
-                                            ano: anoFilter,
+                                            search: searchQuery || undefined,
+                                            status_pagamento: statusFilter || undefined,
+                                            mes: mesFilter || undefined,
+                                            ano: anoFilter || undefined,
                                         },
-                                        { preserveState: true },
+                                        { preserveState: true, preserveScroll: true },
                                     )
                                 "
                             >
@@ -497,6 +485,33 @@ const viewPdf = (id: number) => {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Pagination Info -->
+            <div
+                v-if="props.notasFiscais.total > 0"
+                class="flex items-center justify-between rounded-lg border bg-card px-6 py-4"
+            >
+                <p class="text-sm text-muted-foreground">
+                    Mostrando
+                    <span class="font-medium text-foreground">
+                        {{ (props.notasFiscais.current_page - 1) * props.notasFiscais.per_page + 1 }}
+                    </span>
+                    até
+                    <span class="font-medium text-foreground">
+                        {{
+                            Math.min(
+                                props.notasFiscais.current_page * props.notasFiscais.per_page,
+                                props.notasFiscais.total,
+                            )
+                        }}
+                    </span>
+                    de
+                    <span class="font-medium text-foreground">
+                        {{ props.notasFiscais.total }}
+                    </span>
+                    resultados
+                </p>
             </div>
         </div>
 
