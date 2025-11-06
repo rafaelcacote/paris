@@ -584,25 +584,27 @@ const printReport = (type: 'complete' | 'summary' = 'complete') => {
                                     <div class="flex justify-end gap-2">
                                         <Button
                                             v-if="notaFiscal.arquivo_path"
-                                            variant="ghost"
+                                            variant="outline"
                                             size="icon"
                                             @click="viewPdf(notaFiscal.id)"
+                                            class="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
                                             title="Ver PDF"
                                         >
-                                            <FileText class="h-4 w-4 text-red-500" />
+                                            <FileText class="h-4 w-4" />
                                         </Button>
                                         <Link v-if="notaFiscal.id" :href="notasFiscaisRoutes.show({ notaFiscal: notaFiscal.id }).url">
-                                            <Button variant="ghost" size="icon" title="Ver detalhes">
+                                            <Button variant="outline" size="icon" class="border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950" title="Ver detalhes">
                                                 <Eye class="h-4 w-4" />
                                             </Button>
                                         </Link>
                                         <Button
-                                            variant="ghost"
+                                            variant="outline"
                                             size="icon"
                                             title="Excluir"
                                             @click="openDeleteModal(notaFiscal)"
+                                            class="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
                                         >
-                                            <Trash2 class="h-4 w-4 text-destructive" />
+                                            <Trash2 class="h-4 w-4" />
                                         </Button>
                                     </div>
                                 </td>

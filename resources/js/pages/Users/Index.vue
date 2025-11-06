@@ -3,7 +3,7 @@ import UserController from '@/actions/App/Http/Controllers/UserController';
 import usersRoutes from '@/routes/users';
 import { Form, Head, Link, router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
 import InputError from '@/components/InputError.vue';
@@ -67,6 +67,31 @@ const breadcrumbItems: BreadcrumbItem[] = [
 
 const page = usePage();
 
+// Get authenticated user
+const authUser = computed(() => {
+    const user = (page.props as any).auth?.user;
+    return user ? {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+    } : undefined;
+});
+
+// Check if a user is admin (Administrador or admin@admin.com)
+const isAdmin = (user: User | { name: string; email: string } | undefined): boolean => {
+    if (!user) return false;
+    return user.name === 'Administrador' || user.email === 'admin@admin.com';
+};
+
+// Check if delete button should be disabled for a user
+const canDeleteUser = (user: User): boolean => {
+    // Only admin users can disable delete button for admin users
+    if (isAdmin(authUser.value) && isAdmin(user)) {
+        return false;
+    }
+    return true;
+};
+
 // Watch for success messages from server
 watch(
     () => (page.props as { flash?: { success?: string } }).flash,
@@ -112,6 +137,9 @@ const clearSearch = () => {
 };
 
 const openDeleteModal = (user: User) => {
+    if (!canDeleteUser(user)) {
+        return;
+    }
     selectedUser.value = user;
     deleteModal.value = true;
 };
@@ -349,7 +377,8 @@ const closePasswordModal = () => {
                                             @click="openDeleteModal(user)"
                                             variant="outline"
                                             size="icon"
-                                            class="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                                            :disabled="!canDeleteUser(user)"
+                                            class="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 disabled:opacity-50 disabled:cursor-not-allowed"
                                             title="Excluir"
                                         >
                                             <Trash2 class="h-4 w-4" />
