@@ -6,7 +6,7 @@
         class="flex aspect-square size-8 items-center justify-center rounded-md overflow-hidden"
     >
         <img
-            src="/img/logo_paris.png"
+            src="/img/logo.jpeg"
             alt="Paris Engenharia"
             class="size-full object-contain"
         />

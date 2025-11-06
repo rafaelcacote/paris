@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { ArrowLeft, Trash2, FileText } from 'lucide-vue-next';
+import { ArrowLeft, Trash2, FileText, Info, DollarSign, Receipt, User, List } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 
 interface NotaFiscal {
@@ -35,6 +35,13 @@ interface NotaFiscal {
     status_pagamento: string | null;
     data_pagamento: string | null;
     arquivo_path: string | null;
+    inss: number | null;
+    pis: number | null;
+    cofins: number | null;
+    csll: number | null;
+    irrf: number | null;
+    issqn: number | null;
+    total_retencoes: number | null;
     created_at: string;
     updated_at: string;
 }
@@ -169,21 +176,26 @@ const viewPdf = (id: number) => {
                 </div>
             </div>
 
-            <div class="grid gap-12">
-                <div class="rounded-lg border bg-card p-4">
-                    <h3 class="mb-2 text-base font-semibold">Tomador de Serviço</h3>
-                    <div class="grid gap-2">
-                        <Label class="text-sm font-medium">Nome</Label>
-                        <p class="text-sm">{{ props.notaFiscal.nome_tomador_servico || '-' }}</p>
-                    </div>
+            <!-- Tomador de Serviço -->
+            <div class="rounded-lg border bg-card p-6">
+                <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold">
+                    <User class="h-5 w-5" />
+                    Tomador de Serviço
+                </h3>
+                <div class="grid gap-2">
+                    <Label class="text-sm font-medium">Nome</Label>
+                    <p class="text-sm">{{ props.notaFiscal.nome_tomador_servico || '-' }}</p>
                 </div>
             </div>
 
-            <div class="grid gap-6 md:grid-cols-2">
+            <div class="grid gap-6 md:grid-cols-3">
                 <!-- Informações Básicas -->
                 <div class="rounded-lg border bg-card p-6">
-                    <h3 class="mb-4 text-lg font-semibold">Informações Básicas</h3>
-                    <div class="grid grid-cols-2 gap-4">
+                    <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold">
+                        <Info class="h-5 w-5" />
+                        Informações Básicas
+                    </h3>
+                    <div class="grid grid-cols-1 gap-4">
                         <div class="grid gap-2">
                             <Label class="text-sm font-medium">Número da Nota</Label>
                             <p class="text-sm">{{ props.notaFiscal.numero_nota || '-' }}</p>
@@ -191,35 +203,30 @@ const viewPdf = (id: number) => {
 
                         <div class="grid gap-2">
                             <Label class="text-sm font-medium">Código de Verificação</Label>
-                            <p class="text-sm font-mono">{{ props.notaFiscal.codigo_verificacao }}</p>
+                            <p class="text-sm font-mono break-all">{{ props.notaFiscal.codigo_verificacao }}</p>
                         </div>
 
-                        <div class="grid gap-2">
-                            <Label class="text-sm font-medium">Data de Emissão</Label>
-                            <p class="text-sm">{{ formatDate(props.notaFiscal.data_emissao) }}</p>
-                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">Data de Emissão</Label>
+                                <p class="text-sm">{{ formatDate(props.notaFiscal.data_emissao) }}</p>
+                            </div>
 
-                        <div class="grid gap-2">
-                            <Label class="text-sm font-medium">Status de Pagamento</Label>
-                            <Badge 
-                                :variant="getStatusBadgeVariant(props.notaFiscal.status_pagamento)"
-                                :class="getStatusBadgeClass(props.notaFiscal.status_pagamento)"
-                            >
-                                {{ props.notaFiscal.status_pagamento || 'Pendente' }}
-                            </Badge>
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label class="text-sm font-medium">Data de Pagamento</Label>
-                            <p class="text-sm">{{ formatDate(props.notaFiscal.data_pagamento) }}</p>
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">Data de Pagamento</Label>
+                                <p class="text-sm">{{ formatDate(props.notaFiscal.data_pagamento) }}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Valores -->
                 <div class="rounded-lg border bg-card p-6">
-                    <h3 class="mb-4 text-lg font-semibold">Valores</h3>
-                    <div class="grid grid-cols-2 gap-4">
+                    <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold">
+                        <DollarSign class="h-5 w-5" />
+                        Valores
+                    </h3>
+                    <div class="grid gap-4">
                         <div class="grid gap-2">
                             <Label class="text-sm font-medium">Valor Total</Label>
                             <p class="text-lg font-semibold">
@@ -227,35 +234,94 @@ const viewPdf = (id: number) => {
                             </p>
                         </div>
 
-                        <div class="grid gap-2">
-                            <Label class="text-sm font-medium">Valor Líquido</Label>
-                            <p class="text-sm">{{ formatCurrency(props.notaFiscal.valor_liquido_nota) }}</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">Valor Líquido</Label>
+                                <p class="text-sm">{{ formatCurrency(props.notaFiscal.valor_liquido_nota) }}</p>
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">Base de Cálculo</Label>
+                                <p class="text-sm">{{ formatCurrency(props.notaFiscal.base_calculo) }}</p>
+                            </div>
                         </div>
 
-                        <div class="grid gap-2">
-                            <Label class="text-sm font-medium">Base de Cálculo</Label>
-                            <p class="text-sm">{{ formatCurrency(props.notaFiscal.base_calculo) }}</p>
-                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">Alíquota</Label>
+                                <p class="text-sm">
+                                    {{ props.notaFiscal.aliquota ? `${props.notaFiscal.aliquota}%` : '-' }}
+                                </p>
+                            </div>
 
-                        <div class="grid gap-2">
-                            <Label class="text-sm font-medium">Valor ISS</Label>
-                            <p class="text-sm">{{ formatCurrency(props.notaFiscal.valor_iss) }}</p>
-                        </div>
-
-                        <div class="grid gap-2">
-                            <Label class="text-sm font-medium">Alíquota</Label>
-                            <p class="text-sm">
-                                {{ props.notaFiscal.aliquota ? `${props.notaFiscal.aliquota}%` : '-' }}
-                            </p>
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">Status de Pagamento</Label>
+                                <Badge 
+                                    :variant="getStatusBadgeVariant(props.notaFiscal.status_pagamento)"
+                                    :class="getStatusBadgeClass(props.notaFiscal.status_pagamento)"
+                                >
+                                    {{ props.notaFiscal.status_pagamento || 'Pendente' }}
+                                </Badge>
+                            </div>
                         </div>
                     </div>
                 </div>
 
+                <!-- Impostos -->
+                <div class="rounded-lg border bg-card p-6">
+                    <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold">
+                        <Receipt class="h-5 w-5" />
+                        Impostos
+                    </h3>
+                    <div class="grid gap-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">INSS</Label>
+                                <p class="text-sm">{{ formatCurrency(props.notaFiscal.inss) }}</p>
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">PIS</Label>
+                                <p class="text-sm">{{ formatCurrency(props.notaFiscal.pis) }}</p>
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">COFINS</Label>
+                                <p class="text-sm">{{ formatCurrency(props.notaFiscal.cofins) }}</p>
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">CSLL</Label>
+                                <p class="text-sm">{{ formatCurrency(props.notaFiscal.csll) }}</p>
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">IRRF</Label>
+                                <p class="text-sm">{{ formatCurrency(props.notaFiscal.irrf) }}</p>
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label class="text-sm font-medium">ISS</Label>
+                                <p class="text-sm">{{ formatCurrency(props.notaFiscal.issqn || props.notaFiscal.valor_iss) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-2 border-t pt-2">
+                            <Label class="text-sm font-semibold">Total de Retenções</Label>
+                            <p class="text-base font-semibold">
+                                {{ formatCurrency(props.notaFiscal.total_retencoes) }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Discriminação do Serviço -->
             <div v-if="props.notaFiscal.discriminacao_servico" class="rounded-lg border bg-card p-6">
-                <h3 class="mb-4 text-lg font-semibold">Discriminação do Serviço</h3>
+                <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold">
+                    <List class="h-5 w-5" />
+                    Discriminação do Serviço
+                </h3>
                 <p class="text-sm whitespace-pre-wrap">{{ props.notaFiscal.discriminacao_servico }}</p>
             </div>
         </div>

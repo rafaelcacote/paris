@@ -327,7 +327,10 @@ const printReport = (type: 'complete' | 'summary' = 'complete') => {
             <!-- Header Section -->
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold tracking-tight">Notas Fiscais</h1>
+                    <h1 class="flex items-center gap-2 text-3xl font-bold tracking-tight">
+                        <FileText class="h-8 w-8" />
+                        Notas Fiscais
+                    </h1>
                     <p class="mt-1 text-sm text-muted-foreground">
                         Gerencie e importe suas notas fiscais
                     </p>
