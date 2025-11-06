@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { ArrowLeft, Upload, FileText, CheckCircle2, AlertCircle, Eye } from 'lucide-vue-next';
+import { ArrowLeft, Upload, FileText, CheckCircle2, AlertCircle, Eye, List, X, Loader2 } from 'lucide-vue-next';
 import { usePage } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 
@@ -34,9 +34,10 @@ const breadcrumbItems: BreadcrumbItem[] = [
 ];
 
 const fileInput = ref<HTMLInputElement | null>(null);
-const selectedFile = ref<File | null>(null);
+const selectedFiles = ref<File[]>([]);
 const dragOver = ref(false);
 const processing = ref(false);
+const processingFiles = ref<Set<string>>(new Set());
 const duplicateDialog = ref(false);
 const duplicateNotaFiscal = ref<{
     id: number;
@@ -45,6 +46,12 @@ const duplicateNotaFiscal = ref<{
     data_emissao: string | null;
     valor_total: number | null;
 } | null>(null);
+const uploadResults = ref<Array<{
+    fileName: string;
+    status: 'success' | 'error' | 'duplicate' | 'processing';
+    message?: string;
+    duplicateNotaFiscal?: any;
+}>>([]);
 
 const page = usePage();
 
@@ -55,23 +62,36 @@ const errors = computed(() => {
 
 // Watch for duplicate nota fiscal flash message
 watch(
-    () => page.props.flash as { duplicate_nota_fiscal?: any; success?: string } | undefined,
+    () => page.props.flash as { duplicate_nota_fiscal?: any; success?: string; upload_results?: any[] } | undefined,
     (flash) => {
         if (flash?.duplicate_nota_fiscal) {
             duplicateNotaFiscal.value = flash.duplicate_nota_fiscal;
             duplicateDialog.value = true;
-            selectedFile.value = null;
-            if (fileInput.value) {
-                fileInput.value.value = '';
-            }
         }
         if (flash?.success) {
             toast.success(flash.success);
-            // Limpar arquivo selecionado após sucesso
-            selectedFile.value = null;
-            if (fileInput.value) {
-                fileInput.value.value = '';
-            }
+        }
+        if (flash?.upload_results) {
+            uploadResults.value = flash.upload_results;
+            // Limpar arquivos processados com sucesso
+            const successFiles = flash.upload_results
+                .filter(r => r.status === 'success')
+                .map(r => r.fileName);
+            selectedFiles.value = selectedFiles.value.filter(
+                file => !successFiles.includes(file.name)
+            );
+            
+            // Mostrar toast para duplicatas
+            const duplicates = flash.upload_results.filter(r => r.status === 'duplicate');
+            duplicates.forEach(result => {
+                toast.warning(`${result.fileName}: ${result.message || 'Nota fiscal já cadastrada'}`);
+            });
+            
+            // Mostrar toast para erros
+            const errors = flash.upload_results.filter(r => r.status === 'error');
+            errors.forEach(result => {
+                toast.error(`${result.fileName}: ${result.message || 'Erro ao processar'}`);
+            });
         }
     },
     { deep: true, immediate: true },
@@ -79,17 +99,37 @@ watch(
 
 const handleFileSelect = (event: Event) => {
     const target = event.target as HTMLInputElement;
-    if (target.files && target.files[0]) {
-        selectedFile.value = target.files[0];
+    if (target.files && target.files.length > 0) {
+        const newFiles = Array.from(target.files);
+        // Filtrar apenas PDFs e evitar duplicatas
+        const pdfFiles = newFiles.filter(file => {
+            return file.type === 'application/pdf' && 
+                   !selectedFiles.value.some(existing => existing.name === file.name && existing.size === file.size);
+        });
+        selectedFiles.value = [...selectedFiles.value, ...pdfFiles];
+    }
+    // Limpar o input para permitir selecionar o mesmo arquivo novamente
+    if (fileInput.value) {
+        fileInput.value.value = '';
     }
 };
 
 const handleDrop = (event: DragEvent) => {
     event.preventDefault();
     dragOver.value = false;
-    if (event.dataTransfer?.files && event.dataTransfer.files[0]) {
-        selectedFile.value = event.dataTransfer.files[0];
+    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+        const newFiles = Array.from(event.dataTransfer.files);
+        // Filtrar apenas PDFs e evitar duplicatas
+        const pdfFiles = newFiles.filter(file => {
+            return file.type === 'application/pdf' && 
+                   !selectedFiles.value.some(existing => existing.name === file.name && existing.size === file.size);
+        });
+        selectedFiles.value = [...selectedFiles.value, ...pdfFiles];
     }
+};
+
+const removeFile = (index: number) => {
+    selectedFiles.value.splice(index, 1);
 };
 
 const handleDragOver = (event: DragEvent) => {
@@ -101,27 +141,42 @@ const handleDragLeave = () => {
     dragOver.value = false;
 };
 
-const submitForm = () => {
-    if (!selectedFile.value) {
-        toast.error('Por favor, selecione um arquivo PDF.');
+const submitForm = async () => {
+    if (selectedFiles.value.length === 0) {
+        toast.error('Por favor, selecione pelo menos um arquivo PDF.');
         return;
     }
 
     processing.value = true;
+    uploadResults.value = [];
+    
+    // Processar cada arquivo individualmente
+    const formData = new FormData();
+    selectedFiles.value.forEach((file, index) => {
+        formData.append(`arquivos[${index}]`, file);
+    });
 
     router.post(
         '/notas-fiscais/upload',
-        {
-            arquivo: selectedFile.value,
-        },
+        formData,
         {
             forceFormData: true,
             onSuccess: () => {
                 processing.value = false;
-                // A mensagem de sucesso será exibida via watch quando o flash message chegar
+                processingFiles.value.clear();
+                // Limpar arquivos processados com sucesso após um delay
+                setTimeout(() => {
+                    const successFiles = uploadResults.value
+                        .filter(r => r.status === 'success')
+                        .map(r => r.fileName);
+                    selectedFiles.value = selectedFiles.value.filter(
+                        file => !successFiles.includes(file.name)
+                    );
+                }, 2000);
             },
             onError: () => {
                 processing.value = false;
+                processingFiles.value.clear();
             },
         },
     );
@@ -173,7 +228,7 @@ const closeDuplicateDialog = () => {
                 <form @submit.prevent="submitForm" class="space-y-6">
                     <!-- File Upload Area -->
                     <div class="space-y-4">
-                        <Label>Arquivo PDF</Label>
+                        <Label>Arquivos PDF</Label>
                         <div
                             @drop="handleDrop"
                             @dragover="handleDragOver"
@@ -189,14 +244,14 @@ const closeDuplicateDialog = () => {
                             <input
                                 ref="fileInput"
                                 type="file"
-                                name="arquivo"
+                                name="arquivos"
                                 accept=".pdf"
+                                multiple
                                 class="hidden"
                                 @change="handleFileSelect"
-                                required
                             />
 
-                            <div v-if="!selectedFile" class="flex flex-col items-center gap-4">
+                            <div v-if="selectedFiles.length === 0" class="flex flex-col items-center gap-4">
                                 <div
                                     class="flex h-16 w-16 items-center justify-center rounded-full bg-muted"
                                 >
@@ -204,10 +259,10 @@ const closeDuplicateDialog = () => {
                                 </div>
                                 <div class="text-center">
                                     <p class="text-sm font-medium">
-                                        Clique para selecionar ou arraste o arquivo aqui
+                                        Clique para selecionar ou arraste os arquivos aqui
                                     </p>
                                     <p class="mt-1 text-xs text-muted-foreground">
-                                        Apenas arquivos PDF (máx. 10MB)
+                                        Apenas arquivos PDF (máx. 10MB cada) - Você pode selecionar múltiplos arquivos
                                     </p>
                                 </div>
                             </div>
@@ -219,14 +274,92 @@ const closeDuplicateDialog = () => {
                                     <CheckCircle2 class="h-8 w-8 text-green-600 dark:text-green-400" />
                                 </div>
                                 <div class="text-center">
-                                    <p class="text-sm font-medium">{{ selectedFile.name }}</p>
+                                    <p class="text-sm font-medium">
+                                        {{ selectedFiles.length }} {{ selectedFiles.length === 1 ? 'arquivo selecionado' : 'arquivos selecionados' }}
+                                    </p>
                                     <p class="mt-1 text-xs text-muted-foreground">
-                                        {{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB
+                                        Total: {{ (selectedFiles.reduce((sum, file) => sum + file.size, 0) / 1024 / 1024).toFixed(2) }} MB
                                     </p>
                                 </div>
                             </div>
                         </div>
-                        <InputError :message="errors.arquivo" />
+
+                        <!-- Lista de arquivos selecionados -->
+                        <div v-if="selectedFiles.length > 0" class="space-y-2">
+                            <div
+                                v-for="(file, index) in selectedFiles"
+                                :key="`${file.name}-${file.size}-${index}`"
+                                class="flex items-center justify-between rounded-lg border bg-card p-3"
+                            >
+                                <div class="flex items-center gap-3 flex-1 min-w-0">
+                                    <FileText class="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium truncate">{{ file.name }}</p>
+                                        <p class="text-xs text-muted-foreground">
+                                            {{ (file.size / 1024 / 1024).toFixed(2) }} MB
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8 flex-shrink-0"
+                                    @click="removeFile(index)"
+                                    :disabled="processing"
+                                >
+                                    <X class="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <!-- Resultados do upload -->
+                        <div v-if="uploadResults.length > 0" class="space-y-2">
+                            <Label class="text-sm font-semibold">Resultados do Upload</Label>
+                            <div
+                                v-for="(result, index) in uploadResults"
+                                :key="index"
+                                class="flex items-center gap-3 rounded-lg border p-3"
+                                :class="{
+                                    'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800': result.status === 'success',
+                                    'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800': result.status === 'error',
+                                    'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800': result.status === 'duplicate',
+                                }"
+                            >
+                                <CheckCircle2
+                                    v-if="result.status === 'success'"
+                                    class="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0"
+                                />
+                                <AlertCircle
+                                    v-else-if="result.status === 'error'"
+                                    class="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0"
+                                />
+                                <AlertCircle
+                                    v-else-if="result.status === 'duplicate'"
+                                    class="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0"
+                                />
+                                <Loader2
+                                    v-else
+                                    class="h-5 w-5 text-primary animate-spin flex-shrink-0"
+                                />
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium truncate">{{ result.fileName }}</p>
+                                    <p
+                                        v-if="result.message"
+                                        class="text-xs"
+                                        :class="{
+                                            'text-green-700 dark:text-green-300': result.status === 'success',
+                                            'text-red-700 dark:text-red-300': result.status === 'error',
+                                            'text-amber-700 dark:text-amber-300': result.status === 'duplicate',
+                                        }"
+                                    >
+                                        {{ result.message }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <InputError :message="errors.arquivo || errors.arquivos" />
                     </div>
 
                     <!-- Info Card -->
@@ -246,14 +379,23 @@ const closeDuplicateDialog = () => {
                     </div>
 
                     <!-- Actions -->
-                    <div class="flex justify-end gap-3">
+                    <div class="flex justify-between gap-3">
                         <Link :href="notasFiscaisRoutes.index()">
-                            <Button type="button" variant="outline">Cancelar</Button>
+                            <Button type="button" class="bg-blue-600 hover:bg-blue-700 text-white">
+                                <List class="mr-2 h-4 w-4" />
+                                Ver Todas as Notas Importadas
+                            </Button>
                         </Link>
-                        <Button type="submit" :disabled="!selectedFile || processing">
-                            <Upload v-if="!processing" class="mr-2 h-4 w-4" />
-                            {{ processing ? 'Importando...' : 'Importar Nota Fiscal' }}
-                        </Button>
+                        <div class="flex gap-3">
+                            <Link :href="notasFiscaisRoutes.index()">
+                                <Button type="button" variant="outline">Cancelar</Button>
+                            </Link>
+                            <Button type="submit" :disabled="selectedFiles.length === 0 || processing">
+                                <Upload v-if="!processing" class="mr-2 h-4 w-4" />
+                                <Loader2 v-if="processing" class="mr-2 h-4 w-4 animate-spin" />
+                                {{ processing ? `Importando ${selectedFiles.length} ${selectedFiles.length === 1 ? 'nota fiscal' : 'notas fiscais'}...` : `Importar ${selectedFiles.length} ${selectedFiles.length === 1 ? 'Nota Fiscal' : 'Notas Fiscais'}` }}
+                            </Button>
+                        </div>
                     </div>
                 </form>
             </div>

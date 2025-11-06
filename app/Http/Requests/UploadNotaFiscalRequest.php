@@ -22,7 +22,8 @@ class UploadNotaFiscalRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'arquivo' => ['required', 'file', 'mimes:pdf', 'max:10240'], // 10MB max
+            'arquivos' => ['required', 'array', 'min:1'],
+            'arquivos.*' => ['required', 'file', 'mimes:pdf', 'max:10240'], // 10MB max per file
         ];
     }
 
@@ -32,10 +33,13 @@ class UploadNotaFiscalRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'arquivo.required' => 'Por favor, selecione um arquivo PDF.',
-            'arquivo.file' => 'O arquivo enviado não é válido.',
-            'arquivo.mimes' => 'O arquivo deve ser um PDF.',
-            'arquivo.max' => 'O arquivo não pode ser maior que 10MB.',
+            'arquivos.required' => 'Por favor, selecione pelo menos um arquivo PDF.',
+            'arquivos.array' => 'Os arquivos devem ser enviados como um array.',
+            'arquivos.min' => 'Por favor, selecione pelo menos um arquivo PDF.',
+            'arquivos.*.required' => 'Um dos arquivos enviados não é válido.',
+            'arquivos.*.file' => 'Um dos arquivos enviados não é válido.',
+            'arquivos.*.mimes' => 'Todos os arquivos devem ser PDFs.',
+            'arquivos.*.max' => 'Cada arquivo não pode ser maior que 10MB.',
         ];
     }
 }

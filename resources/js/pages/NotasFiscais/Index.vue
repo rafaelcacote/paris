@@ -17,6 +17,14 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -29,6 +37,9 @@ import {
     X,
     FileText,
     Upload,
+    Printer,
+    ChevronDown,
+    BarChart3,
 } from 'lucide-vue-next';
 
 interface NotaFiscal {
@@ -40,6 +51,14 @@ interface NotaFiscal {
     tomador_razao_social: string | null;
     nome_tomador_servico: string | null;
     valor_total: number | null;
+    inss: number | null;
+    pis: number | null;
+    cofins: number | null;
+    csll: number | null;
+    irrf: number | null;
+    issqn: number | null;
+    outras_deducoes: number | null;
+    total_retencoes: number | null;
     status_pagamento: string | null;
     arquivo_path: string | null;
     created_at: string;
@@ -58,6 +77,7 @@ interface Props {
         status_pagamento?: string;
         mes?: string;
         ano?: string;
+        trimestre?: string;
     };
     anosDisponiveis?: number[];
 }
@@ -93,6 +113,7 @@ const searchQuery = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status_pagamento || '');
 const mesFilter = ref(props.filters?.mes || '');
 const anoFilter = ref(props.filters?.ano || '');
+const trimestreFilter = ref(props.filters?.trimestre || '');
 
 const meses = [
     { value: '', label: 'Todos os meses' },
@@ -110,17 +131,42 @@ const meses = [
     { value: '12', label: 'Dezembro' },
 ];
 
+const trimestres = [
+    { value: '', label: 'Todos os trimestres' },
+    { value: '1', label: '1º Trimestre - Jan/Fev/Mar' },
+    { value: '2', label: '2º Trimestre - Abr/Mai/Jun' },
+    { value: '3', label: '3º Trimestre - Jul/Ago/Set' },
+    { value: '4', label: '4º Trimestre - Out/Nov/Dez' },
+];
+
 const anosDisponiveis = props.anosDisponiveis || [];
 
 const performSearch = () => {
+    const params: Record<string, string | undefined> = {};
+
+    if (searchQuery.value) {
+        params.search = searchQuery.value;
+    }
+
+    if (statusFilter.value) {
+        params.status_pagamento = statusFilter.value;
+    }
+
+    if (mesFilter.value) {
+        params.mes = mesFilter.value;
+    }
+
+    if (anoFilter.value) {
+        params.ano = anoFilter.value;
+    }
+
+    if (trimestreFilter.value) {
+        params.trimestre = trimestreFilter.value;
+    }
+
     router.get(
         notasFiscaisRoutes.index().url,
-        {
-            search: searchQuery.value || undefined,
-            status_pagamento: statusFilter.value || undefined,
-            mes: mesFilter.value || undefined,
-            ano: anoFilter.value || undefined,
-        },
+        params,
         {
             preserveState: true,
             preserveScroll: true,
@@ -128,11 +174,20 @@ const performSearch = () => {
     );
 };
 
+const handleTrimestreChange = () => {
+    // Clear mes filter when trimestre is selected
+    if (trimestreFilter.value) {
+        mesFilter.value = '';
+    }
+    performSearch();
+};
+
 const clearSearch = () => {
     searchQuery.value = '';
     statusFilter.value = '';
     mesFilter.value = '';
     anoFilter.value = '';
+    trimestreFilter.value = '';
     router.get(
         notasFiscaisRoutes.index().url,
         {},
@@ -168,6 +223,13 @@ const formatDate = (date: string | null): string => {
         return '-';
     }
     return new Date(date).toLocaleDateString('pt-BR');
+};
+
+const calculateIss = (notaFiscal: NotaFiscal): number => {
+    const issqn = notaFiscal.issqn ?? 0;
+    const outrasDeducoes = notaFiscal.outras_deducoes ?? 0;
+    const total = Number(issqn) + Number(outrasDeducoes);
+    return isNaN(total) ? 0 : total;
 };
 
 const getStatusBadgeVariant = (status: string | null): 'default' | 'destructive' | 'outline' | 'secondary' => {
@@ -223,6 +285,38 @@ const viewPdf = (id: number) => {
     const url = `/notas-fiscais/${id}/pdf`;
     window.open(url, '_blank');
 };
+
+const printReport = (type: 'complete' | 'summary' = 'complete') => {
+    const params: Record<string, string | undefined> = {};
+
+    if (searchQuery.value) {
+        params.search = searchQuery.value;
+    }
+
+    if (statusFilter.value) {
+        params.status_pagamento = statusFilter.value;
+    }
+
+    if (mesFilter.value) {
+        params.mes = mesFilter.value;
+    }
+
+    if (anoFilter.value) {
+        params.ano = anoFilter.value;
+    }
+
+    if (trimestreFilter.value) {
+        params.trimestre = trimestreFilter.value;
+    }
+
+    // Build query string
+    const queryString = new URLSearchParams(params as Record<string, string>).toString();
+    const route = type === 'complete' ? 'print/report' : 'print/summary';
+    const url = `/notas-fiscais/${route}${queryString ? '?' + queryString : ''}`;
+    
+    // Open in new window to trigger download
+    window.open(url, '_blank');
+};
 </script>
 
 <template>
@@ -238,14 +332,40 @@ const viewPdf = (id: number) => {
                         Gerencie e importe suas notas fiscais
                     </p>
                 </div>
-                <Link :href="notasFiscaisRoutes.create().url">
-                    <Button
-                        class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg transition-all duration-200"
-                    >
-                        <Upload class="mr-2 h-4 w-4" />
-                        Importar Nota Fiscal
-                    </Button>
-                </Link>
+                <div class="flex gap-3">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                            <Button
+                                variant="outline"
+                                class="shadow-sm transition-all duration-200"
+                            >
+                                <Printer class="mr-2 h-4 w-4" />
+                                Imprimir
+                                <ChevronDown class="ml-2 h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Opções de Impressão</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem @click="printReport('complete')">
+                                <FileText class="mr-2 h-4 w-4" />
+                                Impressão Completa
+                            </DropdownMenuItem>
+                            <DropdownMenuItem @click="printReport('summary')">
+                                <BarChart3 class="mr-2 h-4 w-4" />
+                                Impressão Resumida
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Link :href="notasFiscaisRoutes.create().url">
+                        <Button
+                            class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg transition-all duration-200"
+                        >
+                            <Upload class="mr-2 h-4 w-4" />
+                            Importar Nota Fiscal
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             <!-- Search Filter Card -->
@@ -282,9 +402,22 @@ const viewPdf = (id: number) => {
                             v-model="mesFilter"
                             @change="performSearch"
                             class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="!!trimestreFilter"
                         >
                             <option v-for="mes in meses" :key="mes.value" :value="mes.value">
                                 {{ mes.label }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="w-full md:w-48">
+                        <select
+                            v-model="trimestreFilter"
+                            @change="handleTrimestreChange"
+                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <option v-for="trimestre in trimestres" :key="trimestre.value" :value="trimestre.value">
+                                {{ trimestre.label }}
                             </option>
                         </select>
                     </div>
@@ -338,6 +471,27 @@ const viewPdf = (id: number) => {
                                     Valor Total
                                 </th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold text-foreground">
+                                    INSS
+                                </th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-foreground">
+                                    PIS
+                                </th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-foreground">
+                                    COFINS
+                                </th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-foreground">
+                                    CSLL
+                                </th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-foreground">
+                                    IRRF
+                                </th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-foreground">
+                                    ISS
+                                </th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-foreground">
+                                    Total Retenções
+                                </th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-foreground">
                                     Status
                                 </th>
                                 <th class="px-6 py-4 text-right text-sm font-semibold text-foreground">
@@ -374,6 +528,41 @@ const viewPdf = (id: number) => {
                                 <td class="px-6 py-4">
                                     <div class="font-medium">
                                         {{ formatCurrency(notaFiscal.valor_total) }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm text-muted-foreground">
+                                        {{ formatCurrency(notaFiscal.inss) }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm text-muted-foreground">
+                                        {{ formatCurrency(notaFiscal.pis) }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm text-muted-foreground">
+                                        {{ formatCurrency(notaFiscal.cofins) }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm text-muted-foreground">
+                                        {{ formatCurrency(notaFiscal.csll) }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm text-muted-foreground">
+                                        {{ formatCurrency(notaFiscal.irrf) }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm text-muted-foreground">
+                                        {{ formatCurrency(calculateIss(notaFiscal)) }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm font-medium">
+                                        {{ formatCurrency(notaFiscal.total_retencoes) }}
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">
@@ -416,7 +605,7 @@ const viewPdf = (id: number) => {
                                 </td>
                             </tr>
                             <tr v-if="props.notasFiscais.data.length === 0">
-                                <td colspan="8" class="px-6 py-12 text-center">
+                                <td colspan="15" class="px-6 py-12 text-center">
                                     <div class="flex flex-col items-center gap-2">
                                         <FileText class="h-12 w-12 text-muted-foreground" />
                                         <p class="text-sm text-muted-foreground">
@@ -455,6 +644,7 @@ const viewPdf = (id: number) => {
                                             status_pagamento: statusFilter || undefined,
                                             mes: mesFilter || undefined,
                                             ano: anoFilter || undefined,
+                                            trimestre: trimestreFilter || undefined,
                                         },
                                         { preserveState: true, preserveScroll: true },
                                     )
@@ -475,6 +665,7 @@ const viewPdf = (id: number) => {
                                             status_pagamento: statusFilter || undefined,
                                             mes: mesFilter || undefined,
                                             ano: anoFilter || undefined,
+                                            trimestre: trimestreFilter || undefined,
                                         },
                                         { preserveState: true, preserveScroll: true },
                                     )

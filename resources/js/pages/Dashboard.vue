@@ -22,14 +22,19 @@ interface Props {
         total_notas_fiscais: number;
         valor_total: number;
         valor_liquido_total: number;
-        total_iss_retido: number;
+        total_iss: number;
+        total_inss: number;
+        total_pis: number;
+        total_cofins: number;
+        total_csll: number;
+        total_irrf: number;
         total_retencoes: number;
     };
     status_stats: Record<string, number>;
     valor_por_status: Record<string, number>;
-    notas_por_mes: Array<{
-        mes: string;
-        mes_numero: string;
+    notas_por_trimestre: Array<{
+        trimestre: string;
+        trimestre_key: string;
         quantidade: number;
         valor_total: number;
     }>;
@@ -104,7 +109,7 @@ const percentualPagas = totalStatus > 0 ? (pagas / totalStatus) * 100 : 0;
 const percentualCanceladas = totalStatus > 0 ? (canceladas / totalStatus) * 100 : 0;
 
 // Máximo de valor para o gráfico de barras
-const maxValorMes = Math.max(...(props.notas_por_mes?.map((n) => n.valor_total) || [0]), 1);
+const maxValorTrimestre = Math.max(...(props.notas_por_trimestre?.map((n) => n.valor_total) || [0]), 1);
 </script>
 
 <template>
@@ -128,8 +133,8 @@ const maxValorMes = Math.max(...(props.notas_por_mes?.map((n) => n.valor_total) 
                 </Link>
             </div>
 
-            <!-- Stats Cards -->
-            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <!-- Stats Cards - Primeira Linha -->
+            <div class="grid gap-4 md:grid-cols-4">
                 <!-- Total de Notas Fiscais -->
                 <Card>
                     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -166,15 +171,90 @@ const maxValorMes = Math.max(...(props.notas_por_mes?.map((n) => n.valor_total) 
                     </CardContent>
                 </Card>
 
-                <!-- ISS Retido -->
+                <!-- ISS -->
                 <Card>
                     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle class="text-sm font-medium">ISS Retido</CardTitle>
+                        <CardTitle class="text-sm font-medium">ISS</CardTitle>
                         <Receipt class="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div class="text-2xl font-bold">{{ formatCurrency(props.stats.total_iss_retido) }}</div>
-                        <p class="text-xs text-muted-foreground">Total de impostos retidos</p>
+                        <div class="text-2xl font-bold">{{ formatCurrency(props.stats.total_iss) }}</div>
+                        <p class="text-xs text-muted-foreground">ISSQN + Outras Deduções</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <!-- Stats Cards - Segunda Linha: Retenções -->
+            <div class="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+                <!-- INSS -->
+                <Card>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">INSS</CardTitle>
+                        <Receipt class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">{{ formatCurrency(props.stats.total_inss) }}</div>
+                        <p class="text-xs text-muted-foreground">Total retido</p>
+                    </CardContent>
+                </Card>
+
+                <!-- PIS -->
+                <Card>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">PIS</CardTitle>
+                        <Receipt class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">{{ formatCurrency(props.stats.total_pis) }}</div>
+                        <p class="text-xs text-muted-foreground">Total retido</p>
+                    </CardContent>
+                </Card>
+
+                <!-- COFINS -->
+                <Card>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">COFINS</CardTitle>
+                        <Receipt class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">{{ formatCurrency(props.stats.total_cofins) }}</div>
+                        <p class="text-xs text-muted-foreground">Total retido</p>
+                    </CardContent>
+                </Card>
+
+                <!-- CSLL -->
+                <Card>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">CSLL</CardTitle>
+                        <Receipt class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">{{ formatCurrency(props.stats.total_csll) }}</div>
+                        <p class="text-xs text-muted-foreground">Total retido</p>
+                    </CardContent>
+                </Card>
+
+                <!-- IRRF -->
+                <Card>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">IRRF</CardTitle>
+                        <Receipt class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">{{ formatCurrency(props.stats.total_irrf) }}</div>
+                        <p class="text-xs text-muted-foreground">Total retido</p>
+                    </CardContent>
+                </Card>
+
+                <!-- Total Retenções -->
+                <Card>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">Total Retenções</CardTitle>
+                        <Receipt class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">{{ formatCurrency(props.stats.total_retencoes) }}</div>
+                        <p class="text-xs text-muted-foreground">Soma de todas</p>
                     </CardContent>
                 </Card>
             </div>
@@ -241,21 +321,21 @@ const maxValorMes = Math.max(...(props.notas_por_mes?.map((n) => n.valor_total) 
                     </CardContent>
                 </Card>
 
-                <!-- Notas por Mês -->
+                <!-- Notas por Trimestre -->
                 <Card class="lg:col-span-2">
                     <CardHeader>
-                        <CardTitle>Notas Fiscais por Mês</CardTitle>
-                        <CardDescription>Últimos 6 meses</CardDescription>
+                        <CardTitle>Notas Fiscais por Trimestre</CardTitle>
+                        <CardDescription>Último ano</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div v-if="props.notas_por_mes && props.notas_por_mes.length > 0" class="space-y-4">
+                        <div v-if="props.notas_por_trimestre && props.notas_por_trimestre.length > 0" class="space-y-4">
                             <div
-                                v-for="item in props.notas_por_mes"
-                                :key="item.mes"
+                                v-for="item in props.notas_por_trimestre"
+                                :key="item.trimestre_key"
                                 class="space-y-2"
                             >
                                 <div class="flex items-center justify-between text-sm">
-                                    <span class="font-medium">{{ item.mes }}</span>
+                                    <span class="font-medium">{{ item.trimestre }}</span>
                                     <div class="flex items-center gap-4">
                                         <span class="text-muted-foreground">{{ item.quantidade }} notas</span>
                                         <span class="font-semibold">{{ formatCurrency(item.valor_total) }}</span>
@@ -264,14 +344,14 @@ const maxValorMes = Math.max(...(props.notas_por_mes?.map((n) => n.valor_total) 
                                 <div class="relative h-3 w-full overflow-hidden rounded-full bg-muted">
                                     <div
                                         class="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all"
-                                        :style="{ width: `${(item.valor_total / maxValorMes) * 100}%` }"
+                                        :style="{ width: `${(item.valor_total / maxValorTrimestre) * 100}%` }"
                                     />
                                 </div>
                             </div>
                         </div>
                         <div v-else class="flex h-32 items-center justify-center text-sm text-muted-foreground">
                             Nenhum dado disponível
-                </div>
+                        </div>
                     </CardContent>
                 </Card>
 

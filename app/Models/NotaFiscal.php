@@ -26,6 +26,7 @@ class NotaFiscal extends Model
         'csll',
         'irrf',
         'issqn',
+        'outras_deducoes',
         'total_retencoes',
         'valor_liquido_nota',
         'status_pagamento',
@@ -38,7 +39,7 @@ class NotaFiscal extends Model
     protected function casts(): array
     {
         return [
-            'data_emissao' => 'datetime',
+            'data_emissao' => 'date',
             'data_pagamento' => 'date',
             'valor_total' => 'decimal:2',
             'base_calculo' => 'decimal:2',
@@ -51,6 +52,7 @@ class NotaFiscal extends Model
             'csll' => 'decimal:2',
             'irrf' => 'decimal:2',
             'issqn' => 'decimal:2',
+            'outras_deducoes' => 'decimal:2',
             'total_retencoes' => 'decimal:2',
             'valor_liquido_nota' => 'decimal:2',
         ];
