@@ -29,7 +29,7 @@ class NotaFiscalController extends Controller
         $query = NotaFiscal::query();
         $this->applyFilters($query, $request);
 
-        $notasFiscais = $query->latest('data_emissao')->latest('created_at')->paginate(15)->withQueryString();
+        $notasFiscais = $query->orderByDesc('numero_nota')->latest('created_at')->paginate(15)->withQueryString();
 
         // Ensure outras_deducoes is always included in the response (even if null)
         $notasFiscais->getCollection()->transform(function ($notaFiscal) {
@@ -324,9 +324,8 @@ class NotaFiscalController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('numero_nota', 'like', "%{$search}%")
                     ->orWhere('codigo_verificacao', 'like', "%{$search}%")
-                    ->orWhere('prestador_razao_social', 'like', "%{$search}%")
-                    ->orWhere('tomador_razao_social', 'like', "%{$search}%")
-                    ->orWhere('nome_tomador_servico', 'like', "%{$search}%");
+                    ->orWhere('nome_tomador_servico', 'like', "%{$search}%")
+                    ->orWhere('discriminacao_servico', 'like', "%{$search}%");
             });
         }
 
@@ -385,7 +384,7 @@ class NotaFiscalController extends Controller
         $query = NotaFiscal::query();
         $this->applyFilters($query, $request);
 
-        $notasFiscais = $query->latest('data_emissao')->latest('created_at')->get();
+        $notasFiscais = $query->orderByDesc('numero_nota')->latest('created_at')->get();
 
         // Build filter description
         $filtersDescription = $this->buildFiltersDescription($request);
@@ -482,7 +481,7 @@ class NotaFiscalController extends Controller
         $query = NotaFiscal::query();
         $this->applyFilters($query, $request);
 
-        $notasFiscais = $query->latest('data_emissao')->latest('created_at')->get();
+        $notasFiscais = $query->orderByDesc('numero_nota')->latest('created_at')->get();
 
         // Build filter description
         $filtersDescription = $this->buildFiltersDescription($request);
