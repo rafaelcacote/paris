@@ -19,6 +19,16 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from '@/components/ui/pagination';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -50,6 +60,14 @@ interface Props {
         last_page: number;
         per_page: number;
         total: number;
+        from: number | null;
+        to: number | null;
+        path: string;
+        links: Array<{
+            url: string | null;
+            label: string;
+            active: boolean;
+        }>;
     };
     filters?: {
         search?: string;
@@ -132,6 +150,82 @@ const clearSearch = () => {
         {
             preserveState: true,
             preserveScroll: true,
+        },
+    );
+};
+
+type PaginationEntry =
+    | {
+          type: 'page';
+          value: number;
+      }
+    | {
+          type: 'ellipsis';
+          key: string;
+      };
+
+const paginationItems = computed<PaginationEntry[]>(() => {
+    const totalPages = props.users.last_page;
+    const currentPage = props.users.current_page;
+
+    if (totalPages <= 1) {
+        return [];
+    }
+
+    const pageSet = new Set<number>();
+    pageSet.add(1);
+    pageSet.add(totalPages);
+
+    for (let pageNumber = currentPage - 1; pageNumber <= currentPage + 1; pageNumber += 1) {
+        if (pageNumber > 1 && pageNumber < totalPages) {
+            pageSet.add(pageNumber);
+        }
+    }
+
+    const orderedPages = Array.from(pageSet).sort((a, b) => a - b);
+
+    const items: PaginationEntry[] = [];
+    let previousPage: number | null = null;
+
+    for (const pageNumber of orderedPages) {
+        if (previousPage !== null && pageNumber - previousPage > 1) {
+            items.push({
+                type: 'ellipsis',
+                key: `ellipsis-${pageNumber}`,
+            });
+        }
+
+        items.push({
+            type: 'page',
+            value: pageNumber,
+        });
+
+        previousPage = pageNumber;
+    }
+
+    return items;
+});
+
+const canGoToPreviousPage = computed(() => props.users.current_page > 1);
+const canGoToNextPage = computed(
+    () => props.users.current_page < props.users.last_page,
+);
+
+const changePage = (page: number) => {
+    if (page < 1 || page > props.users.last_page || page === props.users.current_page) {
+        return;
+    }
+
+    router.get(
+        usersRoutes.index().url,
+        {
+            page,
+            search: searchQuery.value || undefined,
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
         },
     );
 };
@@ -409,24 +503,54 @@ const closePasswordModal = () => {
                 </div>
             </div>
 
-            <!-- Pagination Info -->
+            <!-- Pagination -->
             <div
                 v-if="props.users.total > 0"
-                class="flex items-center justify-between rounded-lg border bg-card px-6 py-4"
+                class="flex flex-col gap-4 rounded-lg border bg-card px-6 py-4 md:flex-row md:items-center md:justify-between"
             >
-                <p class="text-sm text-muted-foreground">
+                <Pagination v-if="props.users.last_page > 1">
+                    <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious
+                                type="button"
+                                :disabled="!canGoToPreviousPage"
+                                @click="changePage(props.users.current_page - 1)"
+                            />
+                        </PaginationItem>
+
+                        <template v-for="item in paginationItems" :key="item.type === 'page' ? `page-${item.value}` : item.key">
+                            <PaginationItem v-if="item.type === 'page'">
+                                <PaginationLink
+                                    type="button"
+                                    :active="item.value === props.users.current_page"
+                                    @click="changePage(item.value)"
+                                >
+                                    {{ item.value }}
+                                </PaginationLink>
+                            </PaginationItem>
+                            <PaginationItem v-else>
+                                <PaginationEllipsis />
+                            </PaginationItem>
+                        </template>
+
+                        <PaginationItem>
+                            <PaginationNext
+                                type="button"
+                                :disabled="!canGoToNextPage"
+                                @click="changePage(props.users.current_page + 1)"
+                            />
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
+
+                <p class="text-sm text-muted-foreground md:text-right">
                     Mostrando
                     <span class="font-medium text-foreground">
-                        {{ (props.users.current_page - 1) * props.users.per_page + 1 }}
+                        {{ props.users.from ?? 0 }}
                     </span>
                     até
                     <span class="font-medium text-foreground">
-                        {{
-                            Math.min(
-                                props.users.current_page * props.users.per_page,
-                                props.users.total,
-                            )
-                        }}
+                        {{ props.users.to ?? 0 }}
                     </span>
                     de
                     <span class="font-medium text-foreground">

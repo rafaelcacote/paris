@@ -237,6 +237,14 @@ class NotaFiscalPdfExtractor
             $retencoes['cofins'] = $this->extractDecimalSimples($text, 'Cofins\(R\$\)') ?? 0.00;
             $retencoes['csll'] = $this->extractDecimalSimples($text, 'C\.S\.L\.L\(R\$\)') ?? 0.00;
             $retencoes['irrf'] = $this->extractDecimalSimples($text, 'IRRF\(R\$\)') ?? 0.00;
+            
+            if ($this->retencoesTodasZeradas($retencoes)) {
+                $sequencia = $this->extractNumericSequence($text, 'INSS(R$)', 5);
+
+                if ($sequencia) {
+                    [$retencoes['inss'], $retencoes['pis'], $retencoes['cofins'], $retencoes['csll'], $retencoes['irrf']] = $sequencia;
+                }
+            }
         }
 
         // Total das retenções - padrão específico
@@ -291,9 +299,49 @@ class NotaFiscalPdfExtractor
             $dados['outras_deducoes'] = $this->extractDecimalSimples($text, 'Outras Deduções\s*\(R\$\)') ?? 0.00;
             $dados['total_retencoes'] = $this->extractDecimalSimples($text, 'Total das Retenções\s*\(R\$\)') ?? 0.00;
             $dados['valor_liquido_nota'] = $this->extractDecimalSimples($text, 'Valor Líquido da Nota\s*\(R\$\)');
+
+            if (($dados['issqn'] ?? 0.00) === 0.00 && ($dados['outras_deducoes'] ?? 0.00) === 0.00 && ($dados['total_retencoes'] ?? 0.00) === 0.00 && ! $dados['valor_liquido_nota']) {
+                $sequencia = $this->extractNumericSequence($text, 'ISSQN(R$)', 4);
+
+                if ($sequencia) {
+                    [$dados['issqn'], $dados['outras_deducoes'], $dados['total_retencoes'], $dados['valor_liquido_nota']] = $sequencia;
+                }
+            }
         }
 
         return $dados;
+    }
+
+    protected function retencoesTodasZeradas(array $retencoes): bool
+    {
+        return ($retencoes['inss'] ?? 0.00) === 0.00
+            && ($retencoes['pis'] ?? 0.00) === 0.00
+            && ($retencoes['cofins'] ?? 0.00) === 0.00
+            && ($retencoes['csll'] ?? 0.00) === 0.00
+            && ($retencoes['irrf'] ?? 0.00) === 0.00;
+    }
+
+    protected function extractNumericSequence(string $text, string $anchor, int $expectedCount): ?array
+    {
+        $position = stripos($text, $anchor);
+
+        if ($position === false) {
+            return null;
+        }
+
+        $snippet = substr($text, $position, 600);
+
+        preg_match_all('/\d{1,3}(?:\.\d{3})*,\d{2}/', $snippet, $matches);
+
+        if (count($matches[0]) < $expectedCount) {
+            return null;
+        }
+
+        $numbers = array_slice($matches[0], 0, $expectedCount);
+
+        return array_map(function ($value) {
+            return $this->parseDecimal($value) ?? 0.00;
+        }, $numbers);
     }
 
     protected function extractDiscriminacaoServico(string $text): ?string
